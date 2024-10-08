@@ -141,7 +141,7 @@ EOF
     # awk -- '/^\s*\]/ && !ins { print "./access.nix"; ins=1 } { print }' /mnt/etc/nixos/configuration.nix > tmp_config
     # cat tmp_config > /mnt/etc/nixos/configuration.nix
     # rm tmp_config
-    sed -i -- '/^\s*\]/.\/access.nix ]' /mnt/etc/nixos/configuration.nix
+    sed -ie -- '0,/  ];/ s/  ];/  .\/access.nix ];' /mnt/etc/nixos/configuration.nix
 }
 
 install() {
