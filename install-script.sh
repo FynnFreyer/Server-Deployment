@@ -116,7 +116,7 @@ configure_user() {
     local key=$(cat $KEY_FILE)
     local pass=$PASSWORD
     if [[ -z $pass ]]; then
-        pass=$(strings /dev/random | tr -d '\n' | head -c 16)
+        pass=$(cat /dev/random | tr -cd '[:print:]' | tr -d '\n' | head -c 16)
         echo "PASSWORD=${pass}"
     fi
 
