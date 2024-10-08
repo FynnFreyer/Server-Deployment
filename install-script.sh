@@ -138,12 +138,11 @@ configure_user() {
 }
 EOF
     # import access config
-    awk -v file="\"    ./access.nix\"" '
-        /^\s*\]/ && !ins {
-            print file; ins=1
-        }{
-            print
-        }' /mnt/etc/nixos/configuration.nix > /mnt/etc/nixos/configuration.nix
+    # awk -v file="\"    ./access.nix\"" '/^\s*\]/ && !ins { print file; ins=1 } { print }' /mnt/etc/nixos/configuration.nix > /mnt/etc/nixos/configuration.nix
+
+    awk -- '/^\s*\]/ && !ins { print file; ins=1 } { print }' /mnt/etc/nixos/configuration.nix > tmp_config
+    cat tmp_config > /mnt/etc/nixos/configuration.nix
+    rm tmp_config
 }
 
 install() {
