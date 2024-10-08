@@ -1,0 +1,7 @@
+.env
+
+# backups and swap files
+*~
+*.bak
+*.swp
+*.kate-swp
