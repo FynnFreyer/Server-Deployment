@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -eEuo pipefail  # make bash reasonably strict
+#set -eEuo pipefail  # make bash reasonably strict
 
 # IFS=$'\n\t'
 
@@ -138,11 +138,10 @@ configure_user() {
 }
 EOF
     # import access config
-    # awk -v file="\"    ./access.nix\"" '/^\s*\]/ && !ins { print file; ins=1 } { print }' /mnt/etc/nixos/configuration.nix > /mnt/etc/nixos/configuration.nix
-
-    awk -- '/^\s*\]/ && !ins { print file; ins=1 } { print }' /mnt/etc/nixos/configuration.nix > tmp_config
-    cat tmp_config > /mnt/etc/nixos/configuration.nix
-    rm tmp_config
+    # awk -- '/^\s*\]/ && !ins { print "./access.nix"; ins=1 } { print }' /mnt/etc/nixos/configuration.nix > tmp_config
+    # cat tmp_config > /mnt/etc/nixos/configuration.nix
+    # rm tmp_config
+    sed -i -- '/^\s*\]/.\/access.nix ]' /mnt/etc/nixos/configuration.nix
 }
 
 install() {
