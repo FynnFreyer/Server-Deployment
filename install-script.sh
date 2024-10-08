@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+
+set -eEuo pipefail  # make bash reasonably strict
+
+# IFS=$'\n\t'
+
+# get the directory of this script, as per https://stackoverflow.com/a/246128
+SCRIPT_DIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+
+# set defaults
+VERBOSE=false
+USER=root
+KEY_FILE=
+
+# define help message
+usage() {
+    local prog=$(basename "${0}")
+    local indent_length="${#prog}"
+    local indent=$(printf "%${indent_length}s")
+
+    # ensure that lines with the prog or indent don't exceed 80 characters!
+    cat << EOF
+NAME
+    $prog - Install NixOS to a disk.
+
+SYNOPSIS
+    $prog [-h | --help] [-v | --verbose] DEVICE
+
+DESCRIPTION
+
+    This script installs NixOS as described in the $(printf "\e]8;;https://nixos.org/manual/nixos/stable/#sec-installation\amanual\e]8;;\a").
+
+    THIS WILL DELETE EVERYTHING ON THE SPECIFIED DISK, USE WITH CARE!
+
+OPTIONS
+
+    Basic Options
+
+        -h, --help     display this help message and exit
+        -v, --verbose  print more output
+
+    Advanced Options
+
+        -u, --user     username for admin, defaults to root
+        -k, --key      install SSH-keys from file
+
+    Positional Arguments
+
+        DEVICE         the disk to install to, e.g., /dev/sdb
+
+EOF
+}
+
+# parse arguments
+get_opts() {
+    while [[ $# -gt 0 ]]; do
+        local argument="${1}"
+        case "${argument}" in
+            # Basic Options
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -v|--verbose)
+                VERBOSE=true
+                ;;
+            # Advanced Options
+            -u|--user)
+                shift
+            	USER="${1}"
+            	;;
+            -k|--key)
+                shift
+            	KEY_FILE="${1}"
+            	;;
+            -*)  # fail on unrecognized flags
+                echo -e "Unknown flag ${argument}\n"
+                usage
+                exit 2
+                ;;
+            *)  # parse positionals
+                if [[ -z $USER ]]; then
+                    shift
+                    DEVICE="${argument}"
+                else
+                    echo -e "Unknown positional argument ${argument}\n"
+                    exit 3
+                fi
+                ;;
+        esac
+        shift
+    done
+    # check, whether required args where provided
+    if [[ -z $DEVICE ]]; then
+        echo -e "Missing argument DEVICE\n"
+        usage
+        exit 4
+    fi
+}
+
+log() {
+    $VERBOSE && echo $1
+}
+
+install() {
+    # $VERBOSE && echo "This does a thing verbosely." \
+    #          || echo "This does a thing quietly." 1> /dev/null 2>&1
+
+    # partition the device
+    log "Partitioning $DEVICE."
+    parted "$DEVICE" -- mklabel gpt
+    parted "$DEVICE" -- mkpart root ext4 1GB 100%
+    parted "$DEVICE" -- mkpart ESP fat32 1MB 1GB
+    parted "$DEVICE" -- set 2 esp on
+
+    # create a file system
+    log "Creating file system."
+    mkfs.ext4 -L root "${DEVICE}1"
+    mkfs.fat -F 32 -n boot "${DEVICE}2"
+
+    # mount the file system
+    log "Mounting file system."
+    mount /dev/disk/by-label/root /mnt
+    mkdir -p /mnt/boot
+    mount /dev/disk/by-label/boot /mnt/boot
+
+    # generate config and install
+    log "Creating OS config."
+    nixos-generate-config --root /mnt
+    log "Installing the configured system."
+    nixos-install
+}
+
+main() {
+    log "Installing NixOS to ${DEVICE}."
+    install
+}
+
+# only run this if executed as a script, not if sourced
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+	get_opts "${@}"
+	main
+	exit 0
+fi
