@@ -10,7 +10,8 @@ SCRIPT_DIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 # set defaults
 VERBOSE=false
 DEVICE=
-USER=root
+USER="root"
+PASSWORD=
 KEY_FILE=
 
 # define help message
@@ -70,6 +71,10 @@ get_opts() {
                 shift  # flag takes an argument
             	USER="${1}"
             	;;
+            -p|--passwd|--password)
+                shift  # flag takes an argument
+            	PASSWORD="${1}"
+            	;;
             -k|--key)
                 shift  # flag takes an argument
             	KEY_FILE="${1}"
@@ -107,6 +112,36 @@ log() {
     $VERBOSE && echo $1
 }
 
+configure_user() {
+    local key=$(cat $KEY_FILE)
+    local pass=$PASSWORD
+    if [[ -z $pass ]]; then
+        pass=$(strings /dev/random | tr -d '\n' | head -c 16)
+        echo "PASSWORD=${pass}"
+    fi
+
+    # write config
+    cat > /mnt/etc/nixos/access.nix << EOF
+{ ... }:
+{
+  users.users.${USER} = {
+    isNormalUser = true;
+    extraGroups = ["wheel" ];
+    password = "$pass";
+    openssh.authorizedKeys.keys = [ "$key" ];
+  };
+
+  services.openssh = {
+    enable = true;
+    settings.PermitRootLogin = "no";
+  };
+}
+EOF
+
+    # import access config
+    awk -v '/^\s*\]/ && !ins { print "    access.nix"; ins=1 } { print }' /mnt/etc/nixos/configuration.nix
+}
+
 install() {
     # $VERBOSE && echo "This does a thing verbosely." \
     #          || echo "This does a thing quietly." 1> /dev/null 2>&1
@@ -132,6 +167,12 @@ install() {
     # generate config and install
     log "Creating OS config."
     nixos-generate-config --root /mnt
+
+    if [[ USER != "root" ]]; then
+        log "Generating user config"
+        configure_user
+    fi
+
     log "Installing the configured system."
     nixos-install
 }
