@@ -9,6 +9,7 @@ SCRIPT_DIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 
 # set defaults
 VERBOSE=false
+DEVICE=
 USER=root
 KEY_FILE=
 
@@ -66,11 +67,11 @@ get_opts() {
                 ;;
             # Advanced Options
             -u|--user)
-                shift
+                shift  # flag takes an argument
             	USER="${1}"
             	;;
             -k|--key)
-                shift
+                shift  # flag takes an argument
             	KEY_FILE="${1}"
             	;;
             -*)  # fail on unrecognized flags
@@ -79,8 +80,7 @@ get_opts() {
                 exit 2
                 ;;
             *)  # parse positionals
-                if [[ -z $USER ]]; then
-                    shift
+                if [[ -z $DEVICE ]]; then
                     DEVICE="${argument}"
                 else
                     echo -e "Unknown positional argument ${argument}\n"
@@ -92,7 +92,12 @@ get_opts() {
     done
     # check, whether required args where provided
     if [[ -z $DEVICE ]]; then
-        echo -e "Missing argument DEVICE\n"
+        cat << EOF
+Missing argument DEVICE.
+Available devices:
+
+$(lsblk -p)
+EOF
         usage
         exit 4
     fi
