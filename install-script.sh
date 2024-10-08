@@ -137,9 +137,13 @@ configure_user() {
   };
 }
 EOF
-
     # import access config
-    awk -v '/^\s*\]/ && !ins { print "    access.nix"; ins=1 } { print }' /mnt/etc/nixos/configuration.nix
+    awk -v file="\"    ./access.nix\"" '
+        /^\s*\]/ && !ins {
+            print file; ins=1
+        }{
+            print
+        }' /mnt/etc/nixos/configuration.nix > /mnt/etc/nixos/configuration.nix
 }
 
 install() {
