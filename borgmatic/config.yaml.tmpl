@@ -1,0 +1,57 @@
+# Authenticate with systemd servcie credentials.
+encryption_passcommand: "systemd-creds decrypt $cred_file"
+
+# List of source directories to backup.
+source_directories:
+    - $data_dir
+
+# Paths of local or remote repositories to backup to.
+repositories:
+    - path: "$borg_repo"
+
+# Retention policy for how many backups to keep.
+keep_daily: 14
+keep_weekly: 8
+keep_monthly: 12
+keep_yearly: 5
+
+# Read exclude patterns from file. See `borg help patterns` for details.
+exclude_from:
+    - /etc/borgmatic/excludes
+
+# Use zstd compression. See `borg help compression` for details.
+compression: zstd
+
+# Number of retries after fail before giving up,
+# and wait time between retries in seconds.
+# Wait time increases by its base value after each retry.
+retries: 2
+retry_wait: 15
+
+# Name of the archive to create. See `borg help placeholders` for placeholders.
+archive_name_format: 'nextcloud-{now:%Y-%m-%d}'
+
+# List of checks to run to validate your backups. See `borg help check` for details.
+checks:
+    - name: repository
+    - name: archives
+      frequency: 2 weeks
+
+# Restrict the number of checked archives to the last n. Applies only
+# to the "archives" check.
+check_last: 3
+
+# Custom preparation and cleanup commands to run.
+before_backup:
+    # - "nextcloud.occ maintenance:mode --on"
+    - sed -i "s/'maintenance' => false/'maintenance' => true/" "$nc_config_dir/config.php"
+
+after_backup:
+    # - "nextcloud.occ maintenance:mode --off"
+    - sed -i "s/'maintenance' => true/'maintenance' => false/" "$nc_config_dir/config.php"
+
+# Hook to run when an action or an associated before/after hook fails.
+# See https://torsion.org/borgmatic/docs/how-to/monitor-your-backups/#error-hooks.
+on_error:
+    - notify.sh "{error:-No error message}" "$admin_addr"
+
